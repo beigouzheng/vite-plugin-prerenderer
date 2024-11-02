@@ -5,7 +5,7 @@ import mkdirp from "mkdirp";
 import fs from "fs";
 import spin from "io-spin";
 
-function vitePluginVuePrerenderer(config  = {}) {
+function vitePluginVuePrerenderer(config = {}) {
   let viteConfig
   return {
     name: "vite-plugin-vue-prerenderer",
@@ -13,15 +13,15 @@ function vitePluginVuePrerenderer(config  = {}) {
       // 存储最终解析的配置
       viteConfig = resolvedConfig
     },
-    closeBundle() {
+    async closeBundle() {
       const spinner = spin("rendering......");
 
-      const { routes = [], options = {} } = config;
+      const { routes = [], options } = config;
       if (!routes || routes.length == 0) {
         console.warn("[vite-plugin-vue-prerenderer] Parameter error: you have to offer a route parameter at least");
         return;
       }
-      const staticDir = path.join(path.resolve(),viteConfig.build.outDir )
+      const staticDir = path.join(path.resolve(), viteConfig.build.outDir)
       spinner.start();
 
       const prerenderer = new Prerenderer({
@@ -38,39 +38,29 @@ function vitePluginVuePrerenderer(config  = {}) {
           renderAfterTime: 2000,
         }),
       });
-      prerenderer
-        .initialize()
-        .then(() => {
-          return prerenderer.renderRoutes(routes);
-        })
-        .then((renderedRoutes) => {
-          renderedRoutes.forEach((renderedRoute) => {
-            try {
-              const html = prerendererTrim(renderedRoute, options);
-              if (html) {
-                const _outputDir = staticDir;
-                const outputDir = path.join(_outputDir, renderedRoute.route);
-                const outputFile = `${outputDir}/index.html`;
-                mkdirp.sync(outputDir);
-                fs.writeFileSync(outputFile, html);
-              }
-            } catch (e) {
-              // Handle errors.
-              console.warn("[vite-plugin-vue-prerenderer] " + e);
+      try {
+        await prerenderer.initialize()
+        const renderedRoutes = await prerenderer.renderRoutes(routes);
+        renderedRoutes.forEach((renderedRoute) => {
+          try {
+            const html = prerendererTrim(renderedRoute, options);
+            if (html) {
+              const _outputDir = staticDir;
+              const outputDir = path.join(_outputDir, renderedRoute.route);
+              const outputFile = `${outputDir}/index.html`;
+              mkdirp.sync(outputDir);
+              fs.writeFileSync(outputFile, html);
             }
-          });
-          spinner.stop();
-
-          // Shut down the file server and renderer.
-          prerenderer.destroy();
-        })
-        .catch((err) => {
-          spinner.stop();
-          // Shut down the server and renderer.
-          prerenderer.destroy();
-          // Handle errors.
-          console.warn("[vite-plugin-vue-prerenderer] " + err);
+          } catch (error) {
+            console.warn("[vite-plugin-vue-prerenderer] " + error);
+          }
         });
+      } catch (error) {
+        console.warn("[vite-plugin-vue-prerenderer] " + error);
+      } finally {
+        spinner.stop();
+        prerenderer.destroy();
+      }
     },
   };
 }
@@ -115,7 +105,7 @@ function prerendererTrim(renderedRoute, options) {
 
     return html;
   } catch (error) {
-    console.warn("[vite-plugin-vue-prerenderer] " + err);
+    console.warn("[vite-plugin-vue-prerenderer] " + error);
     return false;
   }
 }
