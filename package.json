@@ -1,0 +1,9 @@
+{
+  "description": "vite-plugin-prerenderer查看,包含了demo",
+  "private": true,
+  "author": "beigouzheng",
+  "scripts":{
+    "build": "pnpm --filter=vite-plugin-prerenderer build",
+    "test:vue": "pnpm --filter=demo-vue3 build"
+  }
+}
